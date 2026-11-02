@@ -1,0 +1,110 @@
+[
+  {
+    "id": "kb_primera",
+    "name": "Consulta de dolor primera vez",
+    "short": "1RA",
+    "base": "libre",
+    "blocks": [
+      {
+        "section": "s0",
+        "template": "c_id"
+      },
+      {
+        "section": "s0",
+        "template": "c_motivo"
+      },
+      {
+        "section": "s0",
+        "template": "c_anam"
+      },
+      {
+        "section": "s0",
+        "template": "c_ttos"
+      },
+      {
+        "section": "s0",
+        "template": "c_ant"
+      },
+      {
+        "section": "s0",
+        "template": "c_ros"
+      },
+      {
+        "section": "s0",
+        "template": "c_flags"
+      },
+      {
+        "section": "s0",
+        "template": "c_sv"
+      },
+      {
+        "section": "s0",
+        "template": "c_parac"
+      },
+      {
+        "section": "s0",
+        "template": "c_dx"
+      },
+      {
+        "section": "s0",
+        "template": "c_anal"
+      },
+      {
+        "section": "s0",
+        "template": "c_plan"
+      },
+      {
+        "section": "s0",
+        "template": "c_edu"
+      }
+    ]
+  },
+  {
+    "id": "kb_control",
+    "name": "Control de clínica de dolor",
+    "short": "CTRL",
+    "base": "libre",
+    "blocks": [
+      {
+        "section": "s0",
+        "template": "c_motivo"
+      },
+      {
+        "section": "s0",
+        "template": "c_resp"
+      },
+      {
+        "section": "s0",
+        "template": "c_sv"
+      },
+      {
+        "section": "s0",
+        "template": "c_anal"
+      },
+      {
+        "section": "s0",
+        "template": "c_plan"
+      },
+      {
+        "section": "s0",
+        "template": "c_edu"
+      }
+    ]
+  },
+  {
+    "id": "kb_ronda",
+    "name": "Evolución de ronda completa",
+    "short": "RONDA+",
+    "base": "r_soap",
+    "blocks": [
+      {
+        "section": "s2",
+        "template": "r_ef"
+      },
+      {
+        "section": "s3",
+        "template": "r_emm"
+      }
+    ]
+  }
+]

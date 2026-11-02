@@ -86,3 +86,53 @@ Hay que migrarlos a la nueva app (el formato de respaldo `{app:"notarium",format
 - Código muerto (p. ej. `isAbn()` retorna `false` en la primera instrucción) y migraciones ad hoc (`migrateVis24`, `migrateSnips`).
 - Sin pruebas automatizadas; las calculadoras y puntajes clínicos necesitan pruebas unitarias.
 - Persistencia acoplada al runtime de artefactos (`window.claude.use("db")`).
+
+---
+
+# Estado de la migración (v41)
+
+## Decisiones
+
+| Tema | Decisión | Por qué |
+|---|---|---|
+| Plataforma | Aplicación web instalable (PWA) en GitHub Pages | Abre en cualquier computador o celular sin instalar nada; se puede instalar como app; funciona sin internet; publicación gratuita y automática. |
+| Tecnología | TypeScript + React + Vite, pruebas con Vitest | Estándar, con tipos que evitan errores, fácil de mantener y de ampliar. |
+| Plantillas | Un archivo `.md` por plantilla en `content/templates/`, con el mini-lenguaje como único formato | El contenido clínico queda separado del código y se revisa como texto. |
+| Datos | Navegador (localStorage) detrás de una interfaz `StorageBackend` | Hoy es un solo usuario; para varios usuarios se agrega un servidor con cuentas sin tocar la interfaz. |
+| Compatibilidad | Mismo formato de respaldo que el artefacto | Tus plantillas, versiones propias y notas compuestas se importan directo. |
+
+## Garantía de equivalencia
+
+`tools/extract-legacy.cjs` abre el prototipo v40 en un navegador sin pantalla, exporta sus 96 plantillas
+y genera el texto de cada una en dos escenarios (todo vacío y todo lleno). `src/engine/golden.test.ts`
+comprueba que el motor nuevo produce exactamente el mismo texto: 192 casos idénticos.
+
+Extensiones del mini-lenguaje necesarias para no perder información del prototipo:
+
+- `(? pista)` al final de una opción y `?? pista` como última opción del grupo (29 pistas clínicas).
+- `^` / `~` para forzar o evitar la mayúscula inicial (9 plantillas).
+- `order:` en el encabezado para conservar el orden del panel.
+
+## Funciones ya portadas
+
+Panel con Notas/Bloques, búsqueda, favoritas, recientes y grupos plegables; nota libre; opciones en línea y
+compactas; selección múltiple con excluyentes; campos dentro de opciones; pistas y advertencias; elecciones
+recordadas (@); ocultar secciones y párrafos; quitar campos; bloques y textos insertados (mover, duplicar,
+minimizar, quitar); paleta de inserción y tecla `/`; notas compuestas (incluidas, guardar, actualizar, eliminar);
+"Todo normal"; índice de secciones y barra de progreso; espejo enlazado; vista final; copiar con aviso de pendientes;
+deshacer/rehacer; atajos de teclado; editor con vista previa, versiones propias de incluidas y restaurar original;
+respaldo exportar/importar (combinar o reemplazar); calculadoras de opioides y anestésico local; 16 cuestionarios;
+tema claro/oscuro; diseño móvil; funcionamiento sin conexión y aviso de versión nueva.
+
+## Pendiente respecto al prototipo
+
+1. Modo **Escribir**: editar a mano el texto fijo de un párrafo (el motor ya lo soporta con `lit`; falta la interfaz).
+2. Modo **Borrar**: borrador por palabra o arrastrando.
+3. Convertir texto seleccionado en opciones o en campo, y "Guardar como frase".
+4. Menú `/` mientras se escribe dentro de un texto libre.
+5. Editor dedicado de notas compuestas (renombrar y reordenar bloques; hoy se rearman desde la nota).
+
+## Siguientes etapas propuestas
+
+- Cuentas y sincronización entre dispositivos (p. ej. Supabase) cuando haya más usuarios.
+- Biblioteca compartida de plantillas por servicio o equipo.
