@@ -1,13 +1,14 @@
 /** Estado global de la aplicación. */
+import { produce } from 'immer';
 import { create } from 'zustand';
 import { FREE_NOTE_ID } from '../content/builtin';
-import { baseId, freshNote, toParts, toText, type Ctx } from '../engine/text';
+import { baseId, freshNote, isChoice, isFilled, parHidden, parts, secOn, toHTML, toParts, type Ctx, type TextOpts } from '../engine/text';
 import type { Item, NoteState, Template, Value, Visibility } from '../engine/types';
 import { buildCatalog, type Catalog, type CatalogTemplate, type CustomRecord } from './catalog';
-import { allNormal, pendingOne, stickyValues, toggleOption, addCustomOption, uid } from './noteOps';
+import { addCustomOption, allNormal, pendingOne, stickyValues, toggleOption, uid } from './noteOps';
 import { localBackend, migrateSnips, type Persisted, type Settings, type StorageBackend } from './storage';
 
-export type View = 'note' | 'editor' | 'about' | 'combo';
+export type View = 'note' | 'editor' | 'about' | 'profile';
 
 export interface EditorDraft {
   id: string | null;
@@ -26,11 +27,14 @@ export interface EditorDraft {
 }
 
 export interface Hint { label: string; text: string; warn?: boolean }
-export interface Toast { msg: string; amber?: boolean; action?: { label: string; fn: () => void }; id: number }
+export interface Toast { msg: string; amber?: boolean; action?: { label: string; fn: () => void }; id: number; sticky?: boolean }
 export interface Palette { host: string; sid: string; idx: number }
 export type Modal =
   | { kind: 'keys'; welcome?: boolean }
-  | { kind: 'combo'; tplId: string };
+  | { kind: 'combo'; tplId: string }
+  | { kind: 'copy' };
+
+interface Snapshot { notes: Record<string, NoteState>; vis: Record<string, Visibility>; started: number | null }
 
 interface AppState {
   backend: StorageBackend;
@@ -39,6 +43,8 @@ interface AppState {
   catalog: Catalog;
   tplId: string;
   notes: Record<string, NoteState>;
+  /** Momento en que se empezó a escribir sobre el paciente actual (null = nada escrito). */
+  started: number | null;
   view: View;
   query: string;
   pickOpen: boolean;
@@ -47,23 +53,41 @@ interface AppState {
   toast: Toast | null;
   palette: Palette | null;
   modal: Modal | null;
-  hist: { u: string[]; r: string[] };
+  hist: { u: Snapshot[]; r: Snapshot[] };
 }
+
+/* ---------------- arranque ---------------- */
 
 const backend = localBackend;
 const initial: Persisted = backend.load();
 if (migrateSnips(initial)) { backend.saveCustom(initial.custom); backend.saveSettings(initial.settings); }
 
+/**
+ * La nota en curso vive solo en esta pestaña (sessionStorage): sobrevive a una recarga accidental,
+ * pero se borra al cerrar la pestaña. Así no quedan datos de pacientes guardados en el equipo.
+ */
+const SESSION_KEY = 'notarium:session';
+function loadSession(): { notes: Record<string, NoteState>; started: number | null; tplId?: string } {
+  try {
+    const o = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+    if (o && o.notes) return o;
+  } catch { /* sin sesión */ }
+  return { notes: {}, started: null };
+}
+const session = loadSession();
+
 export const useApp = create<AppState>(() => {
   const catalog = buildCatalog(initial.custom);
   const recent = initial.settings.recent.find((id) => catalog.byId.has(id));
+  const tplId = session.tplId && catalog.byId.has(session.tplId) ? session.tplId : recent || catalog.list[0].id;
   return {
     backend,
     settings: initial.settings,
     custom: initial.custom,
     catalog,
-    tplId: recent || catalog.list[0].id,
-    notes: {},
+    tplId,
+    notes: session.notes,
+    started: session.started,
     view: 'note',
     query: '',
     pickOpen: false,
@@ -78,6 +102,36 @@ export const useApp = create<AppState>(() => {
 
 const get = useApp.getState;
 const set = useApp.setState;
+
+let sessionTimer: ReturnType<typeof setTimeout> | undefined;
+function saveSession() {
+  clearTimeout(sessionTimer);
+  const s = get();
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ notes: s.notes, started: s.started, tplId: s.tplId })); } catch { /* lleno o bloqueado */ }
+}
+useApp.subscribe((s, prev) => {
+  if (s.notes === prev.notes && s.started === prev.started && s.tplId === prev.tplId) return;
+  clearTimeout(sessionTimer);
+  sessionTimer = setTimeout(saveSession, 400);
+});
+// al recargar o cerrar, se guarda lo último que se escribió
+if (typeof window !== 'undefined') window.addEventListener('pagehide', saveSession);
+
+/* Si cambia el perfil, las notas que aún no se han tocado se vuelven a crear con la nueva firma. */
+useApp.subscribe((s, prev) => {
+  if (s.settings.profile === prev.settings.profile) return;
+  freshCache.clear();
+  set({ notes: { ...s.notes } });
+});
+
+/* Otra pestaña cambió plantillas o preferencias: se recargan aquí. */
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (!e.key || !e.key.startsWith('notarium:v2:')) return;
+    const p = backend.load();
+    set({ settings: p.settings, custom: p.custom, catalog: buildCatalog(p.custom) });
+  });
+}
 
 /* ---------------- plantillas y notas ---------------- */
 
@@ -112,7 +166,7 @@ export const currentTpl = (): CatalogTemplate =>
 
 export function freshFor(t: CatalogTemplate | Template): NoteState {
   const s = get();
-  const n = freshNote(t, s.settings.sticky[baseId(t)] || {});
+  const n = freshNote(t, s.settings.sticky[baseId(t)] || {}, new Date(), s.settings.profile);
   const combo = (t as CatalogTemplate).combo;
   if (combo) {
     for (const bk of combo.blocks) {
@@ -125,8 +179,17 @@ export function freshFor(t: CatalogTemplate | Template): NoteState {
   return n;
 }
 
+/**
+ * Notas sin tocar todavía: se crean una vez y se reutilizan para que la referencia sea estable
+ * (los componentes solo se vuelven a dibujar cuando su parte de la nota cambia).
+ */
+const freshCache = new Map<string, NoteState>();
 export function noteOf(t: Template): NoteState {
-  return get().notes[t.id] || freshFor(t);
+  const n = get().notes[t.id];
+  if (n) return n;
+  let f = freshCache.get(t.id);
+  if (!f) { f = freshFor(t); freshCache.set(t.id, f); }
+  return f;
 }
 export const visOf = (t: Template): Visibility | undefined => get().settings.vis[baseId(t)];
 
@@ -140,25 +203,51 @@ export function allBlocks(t: Template): Template[] {
   if (t.virtual) return out;
   const n = noteOf(t), vis = visOf(t);
   for (const s of t.sections) {
-    if (vis && vis.sec && s.id in vis.sec ? !vis.sec[s.id] : s.on === false) continue;
+    if (!secOn(vis, s)) continue;
     for (const it of n.items[s.id] || []) if (it.k === 'b') { const v = insertedTpl(it.uid, it.base); if (v) out.push(v); }
   }
   return out;
 }
 
 export const pendingCount = (t: Template) => allBlocks(t).reduce((a, b) => a + pendingOne(b, noteOf(b), visOf(b)), 0);
-export const noteText = (t: Template) => toText(t, makeCtx());
-export const noteParts = (t: Template) => toParts(t, makeCtx());
+export const noteParts = (t: Template, opts?: TextOpts) => toParts(t, makeCtx(), opts);
+export const noteText = (t: Template, opts?: TextOpts) => noteParts(t, opts).map((x) => x.txt).join('\n\n');
+
+export interface PendingItem { tid: string; key: string; label: string; where: string }
+/** Opciones sin elegir, en el orden en que aparecen, con su sección o bloque. */
+export function pendingList(t: Template): PendingItem[] {
+  const out: PendingItem[] = [];
+  const walk = (b: Template, prefix: string) => {
+    const n = noteOf(b), vis = visOf(b), seen = new Set<string>();
+    for (const s of b.sections) {
+      if (!secOn(vis, s)) continue;
+      s.blocks.forEach((blk, i) => {
+        if (parHidden(vis, s.id, i)) return;
+        const dr = n.drop[s.id + ':' + i] || {};
+        parts(blk).toks.forEach((x, j) => {
+          const d = b.vars[x.k];
+          if (dr[j] || seen.has(x.k) || !isChoice(d) || isFilled(d, n.values[x.k])) return;
+          seen.add(x.k);
+          out.push({ tid: b.id, key: x.k, label: d.label, where: prefix + s.title });
+        });
+      });
+      if (!b.virtual) for (const it of n.items[s.id] || []) if (it.k === 'b') { const v = insertedTpl(it.uid, it.base); if (v) walk(v, v.name + ' · '); }
+    }
+  };
+  walk(t, '');
+  return out;
+}
 
 /* ---------------- historial (deshacer / rehacer) ---------------- */
 
-const snap = () => JSON.stringify({ notes: get().notes, vis: get().settings.vis });
+/** Las notas son inmutables (immer): una foto del estado es solo guardar referencias. */
+const snap = (): Snapshot => ({ notes: get().notes, vis: get().settings.vis, started: get().started });
 let typingTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function pushHist() {
   const h = get().hist;
   const u = [...h.u, snap()];
-  if (u.length > 80) u.shift();
+  if (u.length > 100) u.shift();
   set({ hist: { u, r: [] } });
 }
 /** Al escribir, agrupa las teclas en un solo paso de deshacer. */
@@ -167,9 +256,9 @@ export function pushTyping() {
   else clearTimeout(typingTimer);
   typingTimer = setTimeout(() => (typingTimer = null), 1200);
 }
-function restore(s: string) {
-  const o = JSON.parse(s) as { notes: Record<string, NoteState>; vis: Record<string, Visibility> };
-  set({ notes: o.notes });
+function restore(o: Snapshot) {
+  freshCache.clear();
+  set({ notes: o.notes, started: o.started });
   saveSettings({ ...get().settings, vis: o.vis });
 }
 export function undo() {
@@ -194,16 +283,16 @@ export function saveSettings(s: Settings) {
   get().backend.saveSettings(s);
 }
 export function updateSettings(fn: (s: Settings) => void) {
-  const s = structuredClone(get().settings);
-  fn(s);
-  saveSettings(s);
+  saveSettings(produce(get().settings, fn));
 }
 export function saveCustom(c: Record<string, CustomRecord>) {
+  freshCache.clear();
   set({ custom: c, catalog: buildCatalog(c) });
   get().backend.saveCustom(c);
 }
 export function replaceAll(p: Persisted) {
-  set({ custom: p.custom, catalog: buildCatalog(p.custom), notes: {}, hist: { u: [], r: [] } });
+  freshCache.clear();
+  set({ custom: p.custom, catalog: buildCatalog(p.custom), notes: {}, started: null, hist: { u: [], r: [] } });
   saveSettings(p.settings);
   get().backend.saveCustom(p.custom);
 }
@@ -214,13 +303,12 @@ export function replaceAll(p: Persisted) {
 export function editNote(t: Template, fn: (n: NoteState) => void, opts: { hist?: boolean | 'typing' } = {}) {
   if (opts.hist === 'typing') pushTyping();
   else if (opts.hist !== false) pushHist();
-  const n = structuredClone(noteOf(t));
-  fn(n);
-  set({ notes: { ...get().notes, [t.id]: n } });
+  const n = produce(noteOf(t), fn);
+  set({ notes: { ...get().notes, [t.id]: n }, started: get().started ?? Date.now() });
   if (t.sticky.length) {
     const sv = stickyValues(t, n);
     const id = baseId(t);
-    if (JSON.stringify(sv) !== JSON.stringify(get().settings.sticky[id] || {})) updateSettings((s) => { s.sticky[id] = sv; });
+    if (JSON.stringify(sv) !== JSON.stringify(get().settings.sticky[id] || {})) updateSettings((s) => { s.sticky[id] = sv as never; });
   }
 }
 
@@ -235,6 +323,10 @@ export function pickOption(t: Template, k: string, v: string) {
   if (now && o?.hint) showHint({ label: d.label, text: o.hint, warn: o.warn });
   else if (now && d.hint) showHint({ label: d.label, text: d.hint });
   else showHint(null);
+}
+
+export function clearValue(t: Template, k: string) {
+  editNote(t, (n) => { n.values[k] = t.vars[k].kind === 'multi' ? [] : undefined; });
 }
 
 export function addOption(t: Template, k: string, v: string) {
@@ -262,28 +354,43 @@ export function togglePar(t: Template, pk: string) {
   });
 }
 
-export function markAllNormal(t: Template) {
+/** "Todo normal" en la nota (bloques con normal), en un bloque, o solo en una sección. */
+export function markAllNormal(t: Template, sid?: string) {
   pushHist();
   let c = 0;
   const notes = { ...get().notes };
-  const targets = t.virtual ? [t] : allBlocks(t).filter((b) => b.normal);
+  const targets = sid || t.virtual ? [t] : allBlocks(t).filter((b) => b.normal);
   for (const b of targets) {
-    const n = structuredClone(noteOf(b));
-    c += allNormal(b, n, visOf(b));
-    notes[b.id] = n;
+    const vis = visOf(b);
+    const only: Template = sid ? { ...b, sections: b.sections.filter((s) => s.id === sid) } : b;
+    notes[b.id] = produce(noteOf(b), (n) => { c += allNormal(only, n as NoteState, vis); });
   }
-  set({ notes });
+  set({ notes, started: get().started ?? Date.now() });
   toast(c ? 'Lo pendiente quedó normal. Toca solo los hallazgos.' : 'No quedaba nada por marcar.');
 }
 
+/** Vuelve a empezar la nota abierta (mismo paciente). */
 export function newNote() {
   const t = currentTpl();
   pushHist();
   const notes = { ...get().notes };
-  for (const b of allBlocks(t)) if (b !== t) delete notes[b.id];
-  notes[t.id] = freshFor(t);
+  for (const b of allBlocks(t)) delete notes[b.id];
+  freshCache.clear();
   set({ notes, hint: null });
 }
+
+/** Borra todas las notas abiertas: lo único que se conserva es la técnica recordada (@). */
+export function newPatient(silent = false) {
+  if (!Object.keys(get().notes).length && !get().started) { if (!silent) toast('Listo para el siguiente paciente.'); return; }
+  pushHist();
+  freshCache.clear();
+  set({ notes: {}, started: null, hint: null, modal: null });
+  useSheetReset();
+  window.scrollTo({ top: 0 });
+  if (!silent) toast('Paciente nuevo: se borraron todas las notas abiertas.', false, { label: 'Deshacer', fn: undo });
+}
+let useSheetReset: () => void = () => {};
+export const onPatientReset = (fn: () => void) => { useSheetReset = fn; };
 
 /* ---------------- bloques y textos insertados ---------------- */
 
@@ -310,7 +417,7 @@ export function setItemText(host: Template, sid: string, id: string, v: string) 
 
 export function moveItem(host: Template, sid: string, i: number, dir: -1 | 1) {
   const vis = visOf(host);
-  const secs = host.sections.filter((s) => (vis && vis.sec && s.id in vis.sec ? vis.sec[s.id] : s.on !== false));
+  const secs = host.sections.filter((s) => secOn(vis, s));
   const L = noteOf(host).items[sid] || [];
   const j = i + dir;
   if (j < 0 || j >= L.length) {
@@ -340,7 +447,7 @@ export function duplicateItem(host: Template, sid: string, i: number) {
   const nu = uid();
   const src = get().notes['ins_' + it.uid];
   itemsEdit(host, (items) => { items[sid].splice(i + 1, 0, { k: 'b', uid: nu, base: it.base }); });
-  if (src) set({ notes: { ...get().notes, ['ins_' + nu]: structuredClone(src) } });
+  if (src) set({ notes: { ...get().notes, ['ins_' + nu]: src } });
   toast('Copia creada debajo. Revisa lo que cambia, por ejemplo el lado.');
 }
 
@@ -363,21 +470,29 @@ export const setView = (view: View) => set({ view, pickOpen: false, hint: null }
 /* ---------------- avisos ---------------- */
 
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
-export function toast(msg: string, amber = false, action?: Toast['action']) {
+export function toast(msg: string, amber = false, action?: Toast['action'], ms?: number) {
   clearTimeout(toastTimer);
   set({ toast: { msg, amber, action, id: Date.now() } });
-  toastTimer = setTimeout(() => set({ toast: null }), action ? 6000 : 3200);
+  toastTimer = setTimeout(() => set({ toast: null }), ms ?? (action ? 7000 : 3500));
 }
 export const closeToast = () => set({ toast: null });
 export const showHint = (hint: Hint | null) => set({ hint });
 
 /* ---------------- copiar ---------------- */
 
-export async function copyText(text: string): Promise<boolean> {
+export async function copyText(text: string, html?: string): Promise<boolean> {
   try {
+    if (html && typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+      await navigator.clipboard.write([new ClipboardItem({
+        'text/plain': new Blob([text], { type: 'text/plain' }),
+        'text/html': new Blob([html], { type: 'text/html' }),
+      })]);
+      return true;
+    }
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
+    try { await navigator.clipboard.writeText(text); return true; } catch { /* sigue */ }
     const ta = document.createElement('textarea');
     ta.value = text;
     ta.style.position = 'fixed';
@@ -391,13 +506,18 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
-export async function copyNote(force = false) {
+/**
+ * Copiar la nota. Si hay opciones sin elegir, se abre la lista para completarlas,
+ * copiar sin esas frases o copiar igual (con [corchetes]).
+ */
+export async function copyNote(mode: 'check' | 'force' | 'omit' = 'check') {
   const t = currentTpl();
-  const p = pendingCount(t);
-  if (p && !force) {
-    toast(`Faltan ${p} ${p === 1 ? 'opción por elegir' : 'opciones por elegir'}.`, true, { label: 'Copiar igual', fn: () => copyNote(true) });
-    return;
-  }
-  const ok = await copyText(noteText(t));
-  toast(ok ? 'Nota copiada. Pégala en la historia clínica.' : 'No se pudo copiar', !ok, ok ? { label: 'Nota nueva', fn: newNote } : undefined);
+  if (mode === 'check' && pendingCount(t)) { set({ modal: { kind: 'copy' } }); return; }
+  const P = noteParts(t, { omitPending: mode === 'omit' });
+  const text = P.map((x) => x.txt).join('\n\n');
+  const ok = await copyText(text, toHTML(P));
+  set({ modal: null });
+  if (!ok) return toast('No se pudo copiar', true);
+  toast(mode === 'omit' ? 'Copiada sin las frases pendientes.' : 'Nota copiada. Pégala en la historia clínica.', false,
+    { label: 'Paciente nuevo', fn: () => newPatient() }, 12000);
 }

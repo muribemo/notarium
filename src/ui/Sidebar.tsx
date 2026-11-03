@@ -1,3 +1,4 @@
+import { memo } from 'react';
 /** Panel lateral: búsqueda, pestañas Notas/Bloques, favoritas, recientes y grupos. */
 import { isBlockTpl, isNoteTpl, type CatalogTemplate } from '../state/catalog';
 import { openFree, openTpl, setView, updateSettings, useApp } from '../state/store';
@@ -6,12 +7,21 @@ import { newTemplate } from './actions';
 export const norm = (s: string) => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '');
 
-export function Sidebar({ version }: { version: string }) {
-  const { catalog, settings, query, tplId, view, backend } = useApp();
+export const Sidebar = memo(function Sidebar({ version }: { version: string }) {
+  // suscripciones puntuales: el panel no se vuelve a dibujar al escribir en la nota
+  const catalog = useApp((s) => s.catalog);
+  const settings = useApp((s) => s.settings);
+  const query = useApp((s) => s.query);
+  const tplId = useApp((s) => s.tplId);
+  const view = useApp((s) => s.view);
+  const backend = useApp((s) => s.backend);
+  const custom = useApp((s) => s.custom);
   const tab = settings.ptab === 'blk' ? 'blk' : 'notas';
   const inTab = (t?: CatalogTemplate) => !!t && (tab === 'blk' ? isBlockTpl(t) : isNoteTpl(t));
   const all = catalog.list.filter(inTab);
   const q = norm(query.trim());
+  const hasOwn = Object.keys(custom).length > 0;
+  const needsBackup = hasOwn && (!settings.lastBackup || Date.now() - settings.lastBackup > 14 * 864e5);
   const fav = settings.fav;
 
   const row = (t: CatalogTemplate) => (
@@ -89,8 +99,13 @@ export function Sidebar({ version }: { version: string }) {
         <button className="tool tool-wide" title="Exportar o importar respaldo y ver versiones" onClick={() => setView('about')}>
           <span className="ti" aria-hidden="true">⤓</span>Respaldo y versiones ({version})
         </button>
+        {needsBackup && (
+          <button className="tool tool-wide backup-due" onClick={() => setView('about')}>
+            <span className="ti" aria-hidden="true">!</span>{settings.lastBackup ? 'Haz un respaldo: el último fue hace más de 2 semanas' : 'Aún no tienes respaldo de tus plantillas'}
+          </button>
+        )}
         <div className="side-foot">{backend.label}</div>
       </div>
     </aside>
   );
-}
+});

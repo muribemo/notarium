@@ -1,7 +1,7 @@
 /** Respaldo (exportar / importar) y registro de versiones. */
 import { useRef, useState } from 'react';
 import { CHANGELOG, VERSION } from '../version';
-import { copyText, replaceAll, setView, toast, useApp } from '../state/store';
+import { copyText, replaceAll, setView, toast, updateSettings, useApp } from '../state/store';
 import { isBackup, makeBackup, mergeBackup, replaceWithBackup, type Backup } from '../state/storage';
 
 function download(name: string, text: string): boolean {
@@ -27,8 +27,10 @@ export function About() {
   const exportBk = async () => {
     const json = JSON.stringify(makeBackup({ settings, custom }, VERSION), null, 1);
     const d = new Date(), p = (n: number) => String(n).padStart(2, '0');
-    if (download(`notarium-respaldo-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`, json)) toast('Respaldo listo');
-    else { const ok = await copyText(json); toast(ok ? 'No se pudo descargar; el respaldo quedó copiado.' : 'No se pudo exportar el respaldo', !ok); }
+    let ok = download(`notarium-respaldo-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`, json);
+    if (ok) toast('Respaldo listo');
+    else { ok = await copyText(json); toast(ok ? 'No se pudo descargar; el respaldo quedó copiado.' : 'No se pudo exportar el respaldo', !ok); }
+    if (ok) updateSettings((s) => { s.lastBackup = Date.now(); });
   };
   const onFile = (f: File | undefined) => {
     if (!f) return;
@@ -50,7 +52,7 @@ export function About() {
   return (
     <>
       <div className="bar">
-        <button className="btn mob" onClick={() => useApp.setState({ pickOpen: true })}>Notas</button>
+        <button className="btn mob" onClick={() => useApp.setState({ pickOpen: true })} aria-label="Abrir lista de notas">☰</button>
         <h1>Respaldo y versiones</h1>
         <span className="bar-gap" />
         <button className="btn primary" onClick={() => setView('note')}>Volver a la nota</button>
@@ -59,6 +61,7 @@ export function About() {
         <section className="card">
           <h2>Respaldo de tus datos</h2>
           <p>Incluye tus plantillas propias ({nT}), tus notas compuestas ({nC}), tus versiones de plantillas incluidas ({nO}), favoritas, técnica recordada y lo que tienes oculto. <b>No incluye datos de pacientes.</b></p>
+          <p className="muted">Último respaldo: <b>{settings.lastBackup ? new Date(settings.lastBackup).toLocaleDateString('es-CO') : 'nunca'}</b>. Tus plantillas viven solo en este navegador: si borras los datos de navegación, se pierden.</p>
           <p className="muted">Sirve también para traer lo que tenías en el artefacto de Notarium: allí usa <i>Respaldo y versiones → Exportar respaldo</i> e impórtalo aquí.</p>
           <div className="row">
             <button className="btn primary" onClick={exportBk}>Exportar respaldo</button>

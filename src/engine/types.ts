@@ -21,6 +21,10 @@ export interface VarDef {
   options?: Option[];
   def?: string;
   today?: boolean;
+  /** Valor por defecto: la hora actual. */
+  now?: boolean;
+  /** Grupo sin nombre: la etiqueta se armó con sus opciones. */
+  auto?: boolean;
   /** Campo que vive dentro de una opción y solo aparece si esa opción está elegida. */
   inOpt?: boolean;
   /** Selección múltiple que sale como lista con guiones. */

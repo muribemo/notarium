@@ -163,3 +163,68 @@ puede medir.
 2. ¿En qué sistema de historia clínica pegas las notas? ¿Respeta saltos de línea y listas? Así se define
    el formato de copiado.
 3. ¿Usas Notarium más en computador o en celular durante la ronda? Así se decide si va primero la fase 3 o la 4.
+
+---
+
+# Avance (v42, 3 de noviembre de 2026)
+
+## Antes y después (mismo método de medición)
+
+| Qué | v41 | v42 |
+|---|---|---|
+| Tiempo por tecla, CPU 4 veces más lenta, nota de ronda grande | ~100 ms | **~25 ms** |
+| Tiempo por opción, CPU lenta (medido dentro de la página) | 385 ms* | **~55 ms** (mediana) |
+| Fallas de contraste (axe, tema claro y oscuro) | 146 | **0** |
+| Celular: alto de la barra superior fija | 191 px | **65 px** (más la barra inferior de acciones) |
+| Celular: desplazamiento horizontal | sí (457 px en 390) | **no** |
+| `**` visibles en la hoja | sí | **no** |
+| Pruebas | 204 unitarias | 205 unitarias + **10 recorridos en navegador** (escritorio y celular) en cada cambio |
+
+\* Medido con la herramienta de pruebas, que suma su propio retraso.
+
+## Implementado
+
+- **Fase 0, completa.** Negritas que abarcan campos; desbordes en el celular; etiquetas legibles para los grupos
+  sin nombre; protección ante fallas; contraste AA.
+- **Fase 1, completa.**
+  - **Paciente nuevo** (botón y Alt+P, con deshacer).
+  - Aviso cuando la nota tiene datos de hace más de 45 minutos.
+  - La nota en curso se guarda solo en la pestaña: sobrevive a recargas y se borra al cerrar la pestaña.
+  - **Copiar con pendientes:** lista con enlace a cada uno; "copiar sin esas frases" conserva las frases
+    que tienen datos tuyos.
+  - **Perfil** con nombre y registro para la firma.
+  - `{hora=ahora}`.
+- **Fase 2, completa.** Notas inmutables (immer), cada párrafo atento solo a sus campos; panel, índice y
+  espejo desacoplados de la escritura.
+- **Fase 3, parcial.**
+  - Botón **Normal por sección**.
+  - Contador de pendientes por sección y por bloque insertado.
+  - Modo **Pendientes**.
+  - Herramientas de cada grupo (otra opción, quitar, cambiar) en una barrita flotante, sin huecos en el texto.
+  - Barra simplificada.
+  - Nombres del panel en dos líneas.
+- **Fase 4, completa.** Barra inferior (Siguiente, Ver nota, Paciente, Copiar); menús de opciones como hoja
+  inferior con botones de 44 px; bienvenida sin atajos de teclado en pantallas táctiles.
+- **Fase 6, completa.**
+  - Recordatorio de respaldo a las 2 semanas.
+  - Sincronización entre pestañas.
+  - Tipografías incluidas.
+  - Pruebas en navegador dentro de la integración continua; la publicación se detiene si fallan.
+- **Extra:** al copiar se incluye una versión con formato (negritas y párrafos); si la historia clínica no
+  acepta formato, toma el texto plano.
+
+## Propuestas de cambio frente al artefacto (no implementadas)
+
+1. **Una sola forma de elegir.** Todas las opciones como pastilla con menú, y no corchetes en línea. Es más
+   limpio, pero cambia la costumbre: conviene probarla con una sola plantilla primero.
+2. **Datos del paciente compartidos entre bloques.** Lado, peso, edad y diagnóstico se escriben una vez y
+   los usan todos los bloques: el examen, el procedimiento y la calculadora de anestésico local. Hoy cada
+   bloque pide el suyo.
+3. **Ronda con lista de pacientes.** Durante el turno, una lista "Cama 3, Cama 7…", cada una con sus notas,
+   solo en la pestaña y borradas al cerrar. Evita rehacer la nota al saltar entre pacientes.
+4. **Opciones que aprenden.** Ordenar las opciones por lo que más eliges, sin cambiar la plantilla.
+5. **Pantalla de inicio por contexto** (Consulta, Procedimiento, Ronda) con favoritas y notas compuestas.
+6. **Dictado por voz** en los campos de texto libre (función del navegador, sin servidor).
+7. **Modos Escribir y Borrar** del artefacto, rediseñados como "editar este párrafo" en el menú del párrafo.
+8. **Cuentas y sincronización** cuando haya más usuarios.
+9. **Contenido local:** español, CUPS y CIE-10 OMS, según tu respuesta.
