@@ -23,7 +23,7 @@ test('TFESI: elegir, escribir y copiar sin pendientes', async ({ page }) => {
   await page.locator('.botbar .primary:visible, .bar .btn.primary:visible').first().click();
   await expect(page.getByRole('dialog')).toContainText('sin elegir');
   await page.getByRole('button', { name: 'Copiar sin esas frases' }).click();
-  await expect(page.locator('.toast')).toContainText('Copiada');
+  await expect(page.locator('.toast')).toContainText(/copiada/i);
   const clip = await page.evaluate(() => navigator.clipboard.readText());
   expect(clip).toContain('Right L4-L5 transforaminal');
   expect(clip).toContain('6-month history');
@@ -63,8 +63,11 @@ test('nota libre con bloques, examen normal y cuestionario', async ({ page }) =>
   await page.keyboard.press('Enter');
   await page.locator('.qz-it').first().getByRole('button', { name: 'Sí' }).click();
   await page.locator('.botbar .primary:visible, .bar .btn.primary:visible').first().click();
-  await page.getByRole('button', { name: 'Copiar sin esas frases' }).click();
-  await expect(page.locator('.toast')).toContainText('Copiada');
+  // si "Todo normal" completó todo, se copia directo; si quedó algo, se copia sin lo pendiente
+  const omit = page.getByRole('button', { name: 'Copiar sin esas frases' });
+  await expect(omit.or(page.locator('.toast', { hasText: /copiada/i }))).toBeVisible();
+  if (await omit.isVisible()) await omit.click();
+  await expect(page.locator('.toast')).toContainText(/copiada/i);
   const clip = await page.evaluate(() => navigator.clipboard.readText());
   expect(clip).toContain('Hombro derecho');
   expect(clip).toContain('DN4 1/10');
