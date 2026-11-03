@@ -1,5 +1,6 @@
 import { memo } from 'react';
 /** Panel lateral: búsqueda, pestañas Notas/Bloques, favoritas, recientes y grupos. */
+import { COLLAPSED_BY_DEFAULT } from '../content/builtin';
 import { isBlockTpl, isNoteTpl, type CatalogTemplate } from '../state/catalog';
 import { openFree, openTpl, setView, updateSettings, useApp } from '../state/store';
 import { newTemplate } from './actions';
@@ -55,7 +56,8 @@ export const Sidebar = memo(function Sidebar({ version }: { version: string }) {
   } else {
     const favs = fav.map((id) => catalog.byId.get(id)).filter(inTab) as CatalogTemplate[];
     const rec = settings.recent.map((id) => catalog.byId.get(id)).filter((t) => inTab(t) && !fav.includes(t!.id)).slice(0, 4) as CatalogTemplate[];
-    const col = settings.collapsed || {};
+    const saved = settings.collapsed || {};
+    const col = new Proxy(saved, { get: (o, g: string) => (g in o ? o[g] : COLLAPSED_BY_DEFAULT.includes(g)) }) as Record<string, boolean>;
     const groups = catalog.groups.map((g) => [g, all.filter((t) => t.group === g && t.id !== 'libre')] as const).filter(([, l]) => l.length);
     body = (<>
       {tab === 'blk' && <p className="tab-help">Bloques: piezas para insertar en una nota con <b>/</b> o con <b>+</b>. También puedes abrir cualquiera sola.</p>}
@@ -64,7 +66,7 @@ export const Sidebar = memo(function Sidebar({ version }: { version: string }) {
       {groups.map(([g, list]) => (
         <div key={g}>
           <button className="group-name gtog" aria-expanded={!col[g]}
-            onClick={() => updateSettings((s) => { const c = (s.collapsed = s.collapsed || {}); c[g] = !c[g]; })}>
+            onClick={() => updateSettings((s) => { const c = (s.collapsed = s.collapsed || {}); c[g] = !col[g]; })}>
             <span className="car">{col[g] ? '▸' : '▾'}</span>{g}<span className="cnt">{list.length}</span>
           </button>
           {!col[g] && list.map(row)}

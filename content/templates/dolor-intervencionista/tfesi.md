@@ -2,7 +2,7 @@
 id: tfesi
 name: Epidural transforaminal lumbar
 short: TFESI
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

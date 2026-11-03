@@ -2,7 +2,7 @@
 id: mbb
 name: Bloqueo de ramo medial lumbar
 short: MBB
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

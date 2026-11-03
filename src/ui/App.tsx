@@ -10,6 +10,7 @@ import { NoteView } from './NoteView';
 import { Palette } from './Palette';
 import { useSheetUI } from './Sheet';
 import { Sidebar } from './Sidebar';
+import { bundleFromLocation } from '../state/transfer';
 
 /** Si algo falla al dibujar (p. ej. una plantilla propia mal escrita), se muestra un aviso y no una pantalla en blanco. */
 class Guard extends Component<{ children: ReactNode; resetKey: string }, { err: Error | null }> {
@@ -59,18 +60,25 @@ export function App() {
   useEffect(() => {
     document.addEventListener('keydown', onKeyDown);
     const closePop = (e: MouseEvent) => {
-      if (useSheetUI.getState().openGrp && !(e.target as HTMLElement).closest?.('.grp.cmp')) useSheetUI.setState({ openGrp: null });
+      if (useSheetUI.getState().openGrp && !(e.target as HTMLElement).closest?.('.grp.cmp, .gmenu')) useSheetUI.setState({ openGrp: null });
     };
     document.addEventListener('click', closePop);
     return () => { document.removeEventListener('keydown', onKeyDown); document.removeEventListener('click', closePop); };
   }, []);
   useEffect(() => { document.body.classList.toggle('pick', pickOpen); }, [pickOpen]);
+  // una nota enviada desde otro dispositivo llega en el enlace
+  useEffect(() => {
+    const check = () => bundleFromLocation().then((b) => { if (b) useApp.setState({ modal: { kind: 'receive', bundle: b } }); });
+    check();
+    window.addEventListener('hashchange', check);
+    return () => window.removeEventListener('hashchange', check);
+  }, []);
   useEffect(() => {
     if (theme) document.documentElement.dataset.theme = theme;
     else delete document.documentElement.dataset.theme;
   }, [theme]);
   useEffect(() => {
-    if (!tourDone) { const t = setTimeout(() => useApp.setState({ modal: { kind: 'keys', welcome: true } }), 600); return () => clearTimeout(t); }
+    if (!tourDone) { const t = setTimeout(() => { if (!useApp.getState().modal) useApp.setState({ modal: { kind: 'keys', welcome: true } }); }, 600); return () => clearTimeout(t); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (

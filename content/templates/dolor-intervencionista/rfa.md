@@ -2,7 +2,7 @@
 id: rfa
 name: Radiofrecuencia facetaria lumbar
 short: RFA
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

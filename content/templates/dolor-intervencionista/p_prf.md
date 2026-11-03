@@ -2,7 +2,7 @@
 id: p_prf
 name: Radiofrecuencia pulsada
 short: PRF
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

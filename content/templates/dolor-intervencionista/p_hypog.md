@@ -2,7 +2,7 @@
 id: p_hypog
 name: Neurólisis del plexo hipogástrico superior
 short: HYPOG
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

@@ -2,7 +2,7 @@
 id: p_cmbb
 name: Bloqueo de ramo medial cervical
 short: CMBB
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

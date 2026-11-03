@@ -13,7 +13,11 @@ export const GROUP_ORDER = [
   'Consulta e historia clínica',
   'Examen físico por región',
   'Cuestionarios',
+  'Dolor intervencionista (inglés)',
 ];
+
+/** Grupos que arrancan plegados en el panel. */
+export const COLLAPSED_BY_DEFAULT = ['Dolor intervencionista (inglés)'];
 
 export interface ComboDef {
   id: string;

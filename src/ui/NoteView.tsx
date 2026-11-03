@@ -4,7 +4,7 @@ import { secOn } from '../engine/text';
 import type { Template } from '../engine/types';
 import { choiceCount, emptyOne, pendingOne } from '../state/noteOps';
 import {
-  allBlocks, copyNote, currentTpl, markAllNormal, newNote, newPatient, noteOf, noteParts, noteText, pendingCount,
+  allBlocks, copyNote, copyPiece, currentTpl, noteSections, markAllNormal, newNote, newPatient, noteOf, noteText, pendingCount,
   redo, setView, undo, updateSettings, useApp, visOf,
 } from '../state/store';
 import { deleteCustom, openEditorFor, saveAsCombo } from './actions';
@@ -99,7 +99,7 @@ const Index = memo(function Index({ t }: { t: Template }) {
 
 const MirrorPane = memo(function MirrorPane({ t }: { t: Template }) {
   useCalm(150);
-  const P = noteParts(t);
+  const S = noteSections(t);
   const goto = (tid: string, pk: string) => {
     const box = document.querySelector(`[data-tid="${tid}"]`);
     const el = pk.startsWith('x:') ? box?.querySelector('.xtra') : box?.querySelector(`[data-pk="${pk}"]`);
@@ -109,12 +109,19 @@ const MirrorPane = memo(function MirrorPane({ t }: { t: Template }) {
   };
   return (
     <div className="mirror-pane" aria-live="off">
-      <div className="mirror-head"><span>Así va quedando la nota</span><button className="btn sm" onClick={() => copyNote()}>Copiar</button></div>
+      <div className="mirror-head"><span>Así va quedando la nota</span><button className="btn sm" onClick={() => copyNote()}>Copiar todo</button></div>
       <div className="mirror-txt">
-        {P.length ? P.map((p, i) => (
-          <p key={p.tid + p.pk + i} className={`mp${p.head ? ' mh' : ''}`} title="Ir a este párrafo" onClick={() => goto(p.tid, p.pk)}>
-            {p.txt.split(/(\[[^[\]\n]+\])/).map((x, j) => (j % 2 ? <span key={j} className="gap">{x}</span> : x))}
-          </p>
+        {S.length ? S.map((sec) => (
+          <div key={sec.sid} className="msec">
+            {S.length > 1 && (
+              <div className="msec-h"><span>{sec.title}</span><button className="btn sm" title={`Copiar solo «${sec.title}»`} onClick={() => copyPiece(t, sec.sid)}>Copiar</button></div>
+            )}
+            {sec.parts.map((p, i) => (
+              <p key={p.tid + p.pk + i} className={`mp${p.head ? ' mh' : ''}`} title="Ir a este párrafo" onClick={() => goto(p.tid, p.pk)}>
+                {p.txt.split(/(\[[^[\]\n]+\])/).map((x, j) => (j % 2 ? <span key={j} className="gap">{x}</span> : x))}
+              </p>
+            ))}
+          </div>
         )) : <span className="muted">La nota aparecerá aquí.</span>}
       </div>
     </div>
@@ -212,6 +219,7 @@ export function NoteView() {
           <button role="menuitem" onClick={() => saveAsCombo(t, false)}>Guardar como nota compuesta</button>
           {t.combo && custom[t.id] && <button role="menuitem" onClick={() => deleteCustom(t.id)}>Eliminar nota compuesta</button>}
           <span className="menu-sep" />
+          <button role="menuitem" onClick={() => useApp.setState({ modal: { kind: 'send' } })}>Seguir en otro dispositivo…</button>
           <button role="menuitem" onClick={() => setView('profile')}>Mi perfil y firma</button>
           {!isTouch() && <button role="menuitem" onClick={() => useApp.setState({ modal: { kind: 'keys' } })}>Atajos de teclado <kbd>?</kbd></button>}
           <button role="menuitem" onClick={() => setView('about')}>Respaldo y versiones</button>
@@ -223,6 +231,7 @@ export function NoteView() {
       <nav className="botbar" aria-label="Acciones">
         <button onClick={() => goNextPending(1)}><b>↓</b>Siguiente</button>
         <button onClick={() => setPrev(!prev)} aria-pressed={prev}><b>¶</b>{prev ? 'Editar' : 'Ver nota'}</button>
+        <button onClick={() => useApp.setState({ modal: { kind: 'send' } })}><b>⇪</b>Enviar</button>
         <button onClick={() => newPatient()}><b>＋</b>Paciente</button>
         <button className="primary" onClick={() => copyNote()}><b>⧉</b>Copiar</button>
       </nav>

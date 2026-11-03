@@ -2,7 +2,7 @@
 id: grfa
 name: Radiofrecuencia genicular
 short: GRFA
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

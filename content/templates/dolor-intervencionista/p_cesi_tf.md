@@ -2,7 +2,7 @@
 id: p_cesi_tf
 name: Epidural transforaminal cervical
 short: CTFESI
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

@@ -2,7 +2,7 @@
 id: p_prp
 name: Infiltración con plasma rico en plaquetas
 short: PRP
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

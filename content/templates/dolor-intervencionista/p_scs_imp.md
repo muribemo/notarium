@@ -2,7 +2,7 @@
 id: p_scs_imp
 name: Implante de estimulador medular
 short: SCSI
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion
