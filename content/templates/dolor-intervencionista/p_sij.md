@@ -2,7 +2,7 @@
 id: p_sij
 name: Infiltración articulación sacroilíaca
 short: SIJ
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

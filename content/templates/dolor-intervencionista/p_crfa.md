@@ -2,7 +2,7 @@
 id: p_crfa
 name: Radiofrecuencia facetaria cervical
 short: CRFA
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

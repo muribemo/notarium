@@ -2,7 +2,7 @@
 id: p_tpi
 name: Infiltración de puntos gatillo
 short: TPI
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

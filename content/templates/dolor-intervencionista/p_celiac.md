@@ -2,7 +2,7 @@
 id: p_celiac
 name: Neurólisis del plexo celíaco
 short: CELIAC
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

@@ -11,7 +11,7 @@ import { cap, joinList } from '../clinical/format';
 import { HEADING_RE, OPF, TOK, baseId, isChoice, isFilled, optLabel, parHidden, parts, secOn, valText } from '../engine/text';
 import type { NoteState, Template, Visibility } from '../engine/types';
 import {
-  addOption, addText, clearValue, dropField, duplicateItem, insertedTpl, markAllNormal, moveItem, noteOf, noteText,
+  addOption, addText, clearValue, copyPiece, dropField, duplicateItem, insertedTpl, markAllNormal, moveItem, noteOf, noteText,
   onPatientReset, pickOption, removeItem, restorePar, setItemText, setValue, toggleItemMin, togglePar, toggleSection, useApp,
 } from '../state/store';
 import { Caret, EyeOffIcon, UndoIcon } from './icons';
@@ -85,7 +85,7 @@ function AddOption({ t, k, inMenu }: { t: Template; k: string; inMenu?: boolean 
   const [val, setVal] = useState('');
   if (!on) {
     return (
-      <button className="add" title="Escribir otra opción solo para esta nota" aria-label="Escribir otra opción" onClick={() => setOn(true)}>
+      <button className="add" role={inMenu ? 'menuitem' : undefined} title="Escribir otra opción solo para esta nota" aria-label="Escribir otra opción" onClick={() => setOn(true)}>
         {inMenu ? '+ otra opción' : '+'}
       </button>
     );
@@ -104,13 +104,11 @@ function Group({ t, k, c, dropKey }: { t: Template; k: string; c: boolean; dropK
   const n = noteOf(t), d = t.vars[k], val = n.values[k];
   const gid = t.id + '|' + k;
   const open = useSheetUI((s) => s.openGrp === gid);
+  const menuOpen = useSheetUI((s) => s.openGrp === gid + '|menu');
   const sa = useSheetUI((s) => !!s.showAlt[gid]);
   const opts = [...(d.options || []), ...(n.custom[k] || []).map((v) => ({ v, cust: true, warn: false, ex: false, hint: undefined }))];
   const isSel = (v: string) => (d.kind === 'multi' ? ((val as string[]) || []).includes(v) : val === v);
   const filled = isFilled(d, val);
-  const drop = dropKey ? (
-    <button className="drop" title="Quitar este campo de esta nota" aria-label="Quitar este campo" onClick={() => dropField(t, dropKey[0], dropKey[1])}>×</button>
-  ) : null;
 
   if (isCompact(opts)) {
     const sv = filled ? (d.list ? joinList((val as string[]) || [], t.lang) : valText(t, n, k, val)) : d.label;
@@ -161,10 +159,17 @@ function Group({ t, k, c, dropKey }: { t: Template; k: string; c: boolean; dropK
         </span>
       ))}
       <span className="br">]</span>
-      <span className="gtools">
-        <button className="alt" title="Cambiar la elección" aria-label="Cambiar la elección" onClick={() => useSheetUI.setState((s) => ({ showAlt: { ...s.showAlt, [gid]: !sa } }))}>cambiar</button>
-        <AddOption t={t} k={k} />
-        {drop}
+      <span className="gmenu">
+        <button className="gm-btn" aria-haspopup="menu" aria-expanded={menuOpen} title="Más acciones de este campo" aria-label={`Más acciones: ${d.label}`}
+          onClick={() => setOpen(menuOpen ? null : gid + '|menu')}>⋯</button>
+        {menuOpen && (
+          <span className="gm-pop" role="menu">
+            {filled && <button role="menuitem" onClick={() => { useSheetUI.setState((s) => ({ showAlt: { ...s.showAlt, [gid]: !sa } })); setOpen(null); }}>{sa ? 'Ocultar las otras opciones' : 'Ver las otras opciones'}</button>}
+            {filled && <button role="menuitem" onClick={() => { clearValue(t, k); setOpen(null); }}>Borrar elección</button>}
+            <AddOption t={t} k={k} inMenu />
+            {dropKey && <button role="menuitem" onClick={() => { setOpen(null); dropField(t, dropKey[0], dropKey[1]); }}>Quitar de la nota</button>}
+          </span>
+        )}
       </span>
     </span>
   );
@@ -309,6 +314,7 @@ function InsertedBlock({ host, sid, i, u, base, min }: { host: Template; sid: st
           {v.normal && pend > 0 && <button className="btn sm" onClick={() => markAllNormal(v)}>Todo normal</button>}
           <button className="btn ic sm" title="Subir" aria-label="Subir" onClick={() => moveItem(host, sid, i, -1)}>↑</button>
           <button className="btn ic sm" title="Bajar" aria-label="Bajar" onClick={() => moveItem(host, sid, i, 1)}>↓</button>
+          <button className="btn sm" title="Copiar solo este bloque" onClick={() => copyPiece(v)}>Copiar</button>
           <button className="btn sm" title="Insertar una copia exacta debajo" onClick={() => duplicateItem(host, sid, i)}>Duplicar</button>
           <button className="btn sm" onClick={() => removeItem(host, sid, i)}>Quitar</button>
         </>)}
@@ -344,6 +350,7 @@ function Section({ t, sid, mirrors }: { t: Template; sid: string; mirrors: Recor
         {on && choices && <span className={`sec-pend${pend ? '' : ' ok'}`}>{pend ? pend : '✓'}</span>}
         <span className="rule" />
         {on && t.normal && pend > 0 && <button className="toggle nrm" title="Marca la primera opción (normal) en lo pendiente de esta sección" onClick={() => markAllNormal(t, sid)}>Normal</button>}
+        {on && <button className="toggle cpy" title={`Copiar solo «${s.title}», para pegarla en su campo de la historia clínica`} onClick={() => copyPiece(t, sid)}>Copiar</button>}
         <button className="toggle" onClick={() => toggleSection(t, sid, !on)}>{on ? 'Ocultar' : 'Mostrar'}</button>
       </div>
       {on && (<>

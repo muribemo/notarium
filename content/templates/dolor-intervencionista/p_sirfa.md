@@ -2,7 +2,7 @@
 id: p_sirfa
 name: Radiofrecuencia de ramos laterales sacros
 short: SIRFA
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

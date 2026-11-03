@@ -2,7 +2,7 @@
 id: p_scs_trial
 name: Prueba de estimulador medular (trial)
 short: SCST
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

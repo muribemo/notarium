@@ -591,3 +591,27 @@ main.wide .bar,main.wide .hint{max-width:1380px}
 .prog .pending{white-space:nowrap}
 @media (max-width:1700px){.since{display:none}}
 .ins-head{flex-wrap:wrap;row-gap:6px}
+/* copiar por sección */
+.toggle.cpy{border-color:var(--scrub);color:var(--scrub)}
+.toggle.cpy:hover{background:var(--scrub-tint)}
+.msec{margin:0 0 14px}
+.msec-h{display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:var(--ui);font-size:12.5px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--line);padding:0 0 4px;margin:0 0 6px}
+.msec-h .btn.sm{padding:2px 9px;font-size:12px}
+/* menú ⋯ de cada grupo (reemplaza la barrita flotante): solo se abre al tocarlo */
+.gtools{display:none!important}
+.gmenu{position:relative;display:inline-block}
+.gm-btn{border:0;background:none;color:var(--muted);font-family:var(--ui);font-size:14px;line-height:1;padding:1px 3px;margin-left:1px;border-radius:4px;vertical-align:1px;visibility:hidden}
+.grp:hover .gm-btn,.grp:focus-within .gm-btn,.gm-btn[aria-expanded="true"]{visibility:visible}
+.gm-btn:hover{background:var(--side);color:var(--ink)}
+.gm-pop{position:absolute;left:0;top:calc(100% + 2px);z-index:26;display:flex;flex-direction:column;min-width:200px;background:var(--paper);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.16);padding:4px;font-family:var(--ui);font-size:14px;line-height:1.3;white-space:nowrap}
+.gm-pop>button,.gm-pop .add{display:block;width:100%;text-align:left;border:0;background:none;border-radius:6px;padding:7px 10px;font-size:14px;color:var(--ink);margin:0;opacity:1;vertical-align:0}
+.gm-pop>button:hover,.gm-pop .add:hover{background:var(--side)}
+.gm-pop .cust-in{margin:4px 6px}
+.hide-rej .grp.chosen:not(.cmp) .gmenu{display:inline-block}
+.fwrap>.drop{position:static;display:inline-block;visibility:hidden;box-shadow:none;border:0;background:none;padding:1px 3px}
+.fwrap:hover>.drop,.fwrap:focus-within>.drop{visibility:visible}
+@media (hover:none){.gm-btn{visibility:visible;opacity:.6;font-size:17px;padding:4px 8px}.fwrap>.drop{visibility:visible;opacity:.55}}
+@media (max-width:820px){.gm-pop{position:fixed;left:0;right:0;bottom:0;top:auto;border-radius:14px 14px 0 0;padding:8px 8px calc(10px + env(safe-area-inset-bottom,0px));z-index:50;font-size:16px}.gm-pop>button,.gm-pop .add{padding:13px 12px;font-size:16px}}
+.hide-rej .grp.chosen:not(.cmp) .gm-pop .add{display:block}
+.sec.off .sec-head{opacity:1}
+.sec.off .sec-title{color:var(--muted)}

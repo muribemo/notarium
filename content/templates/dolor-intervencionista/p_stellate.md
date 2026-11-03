@@ -2,7 +2,7 @@
 id: p_stellate
 name: Bloqueo del ganglio estrellado
 short: SGB
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

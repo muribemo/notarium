@@ -1,8 +1,58 @@
 /** Ventanas: bienvenida, atajos, copiar con pendientes y guardar nota compuesta. */
-import { useState } from 'react';
-import { copyNote, currentTpl, openTpl, pendingList, setView, updateSettings, useApp } from '../state/store';
+import { useEffect, useState } from 'react';
+import { copyNote, copyText, currentTpl, openTpl, pendingList, setView, toast, updateSettings, useApp } from '../state/store';
 import { useSheetUI } from './Sheet';
 import { blocksOfNote, writeCombo } from './actions';
+import { openBundle, transferLink, type Bundle } from '../state/transfer';
+
+const isPhone = () => window.matchMedia?.('(max-width: 820px)').matches;
+const canShare = () => typeof navigator.share === 'function';
+
+function SendModal({ onClose }: { onClose: () => void }) {
+  const [link, setLink] = useState('');
+  useEffect(() => { transferLink().then(setLink); }, []);
+  const t = currentTpl();
+  const header = !!useApp.getState().settings.vis[t.baseId || t.id]?.sec?.s0;
+  const share = async () => {
+    if (canShare()) {
+      try { await navigator.share({ title: 'Notarium: ' + t.name, text: 'Abre este enlace para seguir la nota en Notarium.', url: link }); onClose(); return; }
+      catch (e) { if ((e as Error).name === 'AbortError') return; }
+    }
+    const ok = await copyText(link);
+    toast(ok ? 'Enlace copiado. Envíatelo (correo, WhatsApp, notas) y ábrelo en el otro dispositivo.' : 'No se pudo copiar el enlace', !ok);
+    if (ok) onClose();
+  };
+  return (
+    <Box label="Seguir en otro dispositivo" onClose={onClose}>
+      <h2>Seguir esta nota en {isPhone() ? 'el computador' : 'otro dispositivo'}</h2>
+      <ol className="tour">
+        <li>{canShare() ? 'Toca Compartir y envíate el enlace' : 'Copia el enlace y envíatelo'} por correo, WhatsApp o tus notas.</li>
+        <li>Ábrelo en el otro dispositivo: la nota aparece tal como la dejaste, con sus bloques.</li>
+      </ol>
+      <p className="muted">El enlace lleva lo que escribiste en la nota (no tus plantillas). No pasa por ningún servidor de Notarium, pero sí por donde lo envíes: <b>envíatelo solo a ti y evita nombres o documentos del paciente</b>.{header ? ' Esta nota tiene visible el encabezado con datos del paciente.' : ''}</p>
+      <div className="row">
+        <button className="btn primary" disabled={!link} onClick={share}>{canShare() ? 'Compartir enlace' : 'Copiar enlace'}</button>
+        <button className="btn" onClick={onClose}>Cancelar</button>
+      </div>
+      {link && <p className="muted">Tamaño del enlace: {link.length.toLocaleString('es-CO')} caracteres.</p>}
+    </Box>
+  );
+}
+
+function ReceiveModal({ b, onClose }: { b: Bundle; onClose: () => void }) {
+  const open = Object.keys(useApp.getState().notes).length > 0;
+  const when = new Date(b.started ?? b.at).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return (
+    <Box label="Nota recibida" onClose={onClose}>
+      <h2>Llegó una nota: {b.name}</h2>
+      <p>Empezada el {when} en otro dispositivo.{open ? ' Abrirla reemplaza las notas que tienes abiertas aquí (puedes deshacer).' : ''}</p>
+      <div className="row">
+        <button className="btn primary" autoFocus onClick={() => openBundle(b)}>Abrir y seguir</button>
+        <button className="btn" onClick={onClose}>Descartar</button>
+      </div>
+    </Box>
+  );
+}
 
 const KEYS: [string, string][] = [
   ['Tab / Shift+Tab', 'Siguiente o anterior pendiente'],
@@ -101,6 +151,8 @@ export function Modals() {
   const close = () => { useApp.setState({ modal: null }); setName(''); setShort(''); };
 
   if (modal.kind === 'copy') return <CopyModal onClose={close} />;
+  if (modal.kind === 'send') return <SendModal onClose={close} />;
+  if (modal.kind === 'receive') return <ReceiveModal b={modal.bundle} onClose={close} />;
 
   if (modal.kind === 'keys') {
     const done = () => { updateSettings((s) => { s.tourDone = true; }); close(); };

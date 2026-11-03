@@ -6,7 +6,7 @@ group: Dolor intervencionista
 lang: es
 use: nota
 insert: seccion
-order: 71
+order: 13.5
 ---
 ## Seguimiento
 **Seguimiento de neuromodulación:** Paciente con estimulador medular [device: implantado / en prueba] el {fecha del implante}, con alivio del [relief: 0 a 25% / 25 a 50% / 50 a 80% / más del 80%] de su dolor y [function: mejoría funcional importante / mejoría funcional parcial / sin cambio funcional].

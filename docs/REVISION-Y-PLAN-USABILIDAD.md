@@ -228,3 +228,19 @@ puede medir.
 7. **Modos Escribir y Borrar** del artefacto, rediseñados como "editar este párrafo" en el menú del párrafo.
 8. **Cuentas y sincronización** cuando haya más usuarios.
 9. **Contenido local:** español, CUPS y CIE-10 OMS, según tu respuesta.
+
+---
+
+# Avance v43 (respuestas del usuario)
+
+| Respuesta | Cambio |
+|---|---|
+| "Solo quiero en español" | Los 20 procedimientos traducidos (`content/templates/dolor-intervencionista-es/`), con diagnósticos en CIE-10 OMS (p. ej. M54.16 → M54.1; G90.5x → M89.0) y un campo opcional de código CUPS en una sección oculta. No se inventaron códigos CUPS. Las versiones en inglés quedan en un grupo aparte, plegado. Prueba automática: misma estructura que la original, sin inglés y sin códigos CIE-10-CM. |
+| "Historias con campos de texto" | Copiar por sección (en la hoja, en cada bloque y en el panel del texto final), para pegar cada parte en su campo. La copia es texto plano. |
+| "Uso el computador, me gustaría empezar en el celular" | "Seguir en otro dispositivo": la nota viaja comprimida en un enlace (después del `#`, que no llega a ningún servidor). En el celular se comparte por WhatsApp, correo o notas; al abrirlo en el computador, la nota aparece tal como quedó. |
+
+**Corrección encontrada por las pruebas:** la barrita flotante de herramientas de un grupo podía tapar las opciones
+del grupo vecino. Se reemplazó por un menú ⋯ que solo se abre al tocarlo.
+
+**Siguiente paso natural:** sincronizar notas entre dispositivos sin enviar enlaces. Requiere cuentas y un
+servidor con cifrado; conviene hacerlo junto con las cuentas para más usuarios.

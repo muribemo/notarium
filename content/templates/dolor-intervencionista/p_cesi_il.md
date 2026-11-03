@@ -2,7 +2,7 @@
 id: p_cesi_il
 name: Epidural interlaminar cervical
 short: CILESI
-group: Dolor intervencionista
+group: Dolor intervencionista (inglés)
 lang: en
 use: nota
 insert: seccion

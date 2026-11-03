@@ -57,10 +57,11 @@ function withNewAutoLabels(t: Template, expected: string): string {
 const G = golden as Record<string, { empty: string; full: string }>;
 
 describe('equivalencia con el prototipo v40', () => {
-  it('incluye todas las plantillas', () => {
-    expect(BUILTIN_TEMPLATES.map((t) => t.id).sort()).toEqual(Object.keys(G).sort());
+  it('incluye todas las plantillas del prototipo', () => {
+    const ids = new Set(BUILTIN_TEMPLATES.map((t) => t.id));
+    expect(Object.keys(G).filter((id) => !ids.has(id))).toEqual([]);
   });
-  for (const t of BUILTIN_TEMPLATES) {
+  for (const t of BUILTIN_TEMPLATES.filter((x) => x.id in G)) {
     for (const kind of ['empty', 'full'] as const) {
       it(`${t.id} (${kind})`, () => {
         const n: NoteState = { values: scenario(t, kind), custom: {}, lit: {}, drop: {}, items: {} };

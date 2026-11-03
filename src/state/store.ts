@@ -6,6 +6,7 @@ import { baseId, freshNote, isChoice, isFilled, parHidden, parts, secOn, toHTML,
 import type { Item, NoteState, Template, Value, Visibility } from '../engine/types';
 import { buildCatalog, type Catalog, type CatalogTemplate, type CustomRecord } from './catalog';
 import { addCustomOption, allNormal, pendingOne, stickyValues, toggleOption, uid } from './noteOps';
+import type { Bundle } from './transfer';
 import { localBackend, migrateSnips, type Persisted, type Settings, type StorageBackend } from './storage';
 
 export type View = 'note' | 'editor' | 'about' | 'profile';
@@ -32,7 +33,9 @@ export interface Palette { host: string; sid: string; idx: number }
 export type Modal =
   | { kind: 'keys'; welcome?: boolean }
   | { kind: 'combo'; tplId: string }
-  | { kind: 'copy' };
+  | { kind: 'copy' }
+  | { kind: 'send' }
+  | { kind: 'receive'; bundle: Bundle };
 
 interface Snapshot { notes: Record<string, NoteState>; vis: Record<string, Visibility>; started: number | null }
 
@@ -212,6 +215,25 @@ export function allBlocks(t: Template): Template[] {
 export const pendingCount = (t: Template) => allBlocks(t).reduce((a, b) => a + pendingOne(b, noteOf(b), visOf(b)), 0);
 export const noteParts = (t: Template, opts?: TextOpts) => toParts(t, makeCtx(), opts);
 export const noteText = (t: Template, opts?: TextOpts) => noteParts(t, opts).map((x) => x.txt).join('\n\n');
+
+/** El texto de la nota dividido por secciones (para pegar cada una en su campo de la historia clínica). */
+export function noteSections(t: Template, opts?: TextOpts) {
+  const vis = visOf(t);
+  return t.sections.filter((s) => secOn(vis, s)).map((s) => ({
+    sid: s.id, title: s.title, parts: toParts({ ...t, sections: [s] }, makeCtx(), opts),
+  })).filter((x) => x.parts.length);
+}
+
+/** Copia solo una sección de la nota, o un bloque insertado completo. */
+export async function copyPiece(t: Template, sid?: string) {
+  const one = sid ? { ...t, sections: t.sections.filter((s) => s.id === sid) } : t;
+  const P = toParts(one, makeCtx());
+  const name = sid ? one.sections[0]?.title : t.name;
+  if (!P.length) return toast('Esta parte todavía está vacía.');
+  const pend = P.some((x) => /\[[^[\]\n]+\]/.test(x.txt));
+  const ok = await copyText(P.map((x) => x.txt).join('\n\n'));
+  toast(ok ? `Copiado: ${name}.${pend ? ' Tiene opciones sin elegir entre [corchetes].' : ''}` : 'No se pudo copiar', !ok || pend);
+}
 
 export interface PendingItem { tid: string; key: string; label: string; where: string }
 /** Opciones sin elegir, en el orden en que aparecen, con su sección o bloque. */
