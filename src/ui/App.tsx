@@ -1,15 +1,39 @@
-import { useEffect } from 'react';
+import { Component, useEffect, type ReactNode } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { closeToast, showHint, useApp } from '../state/store';
 import { VERSION } from '../version';
 import { About } from './About';
 import { Editor } from './Editor';
 import { onKeyDown } from './keyboard';
-import { Modals } from './Modals';
+import { Modals, ProfileView } from './Modals';
 import { NoteView } from './NoteView';
 import { Palette } from './Palette';
 import { useSheetUI } from './Sheet';
 import { Sidebar } from './Sidebar';
+
+/** Si algo falla al dibujar (p. ej. una plantilla propia mal escrita), se muestra un aviso y no una pantalla en blanco. */
+class Guard extends Component<{ children: ReactNode; resetKey: string }, { err: Error | null }> {
+  state = { err: null as Error | null };
+  static getDerivedStateFromError(err: Error) { return { err }; }
+  componentDidUpdate(prev: { resetKey: string }) { if (prev.resetKey !== this.props.resetKey && this.state.err) this.setState({ err: null }); }
+  componentDidCatch(err: Error) { console.error('Notarium', err); }
+  render() {
+    if (!this.state.err) return this.props.children;
+    return (
+      <div className="about">
+        <section className="card">
+          <h2>No se pudo mostrar esta nota</h2>
+          <p>Algo en la plantilla impidió dibujarla. Tus otras notas y plantillas están bien.</p>
+          <p className="muted">Detalle: {this.state.err.message}</p>
+          <div className="row">
+            <button className="btn" onClick={() => useApp.setState({ pickOpen: true })}>Elegir otra nota</button>
+            <button className="btn primary" onClick={() => location.reload()}>Recargar</button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+}
 
 function UpdateBanner() {
   const { needRefresh: [need, setNeed], updateServiceWorker } = useRegisterSW();
@@ -30,6 +54,7 @@ export function App() {
   const toast = useApp((s) => s.toast);
   const theme = useApp((s) => s.settings.theme);
   const tourDone = useApp((s) => s.settings.tourDone);
+  const tplId = useApp((s) => s.tplId);
 
   useEffect(() => {
     document.addEventListener('keydown', onKeyDown);
@@ -52,7 +77,9 @@ export function App() {
     <div className="app">
       <Sidebar version={VERSION} />
       <main>
-        {view === 'editor' ? <Editor key={useApp.getState().editing?.id || 'new'} /> : view === 'about' ? <About /> : <NoteView />}
+        <Guard resetKey={view + '|' + tplId}>
+          {view === 'editor' ? <Editor key={useApp.getState().editing?.id || 'new'} /> : view === 'about' ? <About /> : view === 'profile' ? <ProfileView /> : <NoteView />}
+        </Guard>
         {hint && (
           <div className={`hint show${hint.warn ? ' warn' : ''}`}>
             <button className="x" aria-label="Cerrar" onClick={() => showHint(null)}>×</button>

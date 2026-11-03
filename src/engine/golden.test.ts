@@ -39,6 +39,21 @@ function questAnswers(qid: string): [number, number][] {
   return QUESTS[qid].items.map((it, i) => [i, it.t === 'yn' ? 1 : it.t === 'num' ? Math.min(3, it.max) : it.o[it.o.length > 1 ? 1 : 0].v]);
 }
 
+/**
+ * Cambio deliberado frente al prototipo: los grupos sin nombre ya no muestran sus opciones cortadas
+ * a 48 caracteres ("…/ vómito / estr]") sino una etiqueta legible ("…"). Se traduce la referencia.
+ */
+function withNewAutoLabels(t: Template, expected: string): string {
+  const norm = (x: string) => x.replace(/⟦\w*⟧?/g, '⟦⟧');
+  let out = expected;
+  for (const d of Object.values(t.vars)) {
+    if (!d.auto || !d.options) continue;
+    const full = norm(d.options.map((o) => o.v).join(' / '));
+    out = out.replace(/\[([^[\]\n]+)\]/g, (m, c: string) => (full.startsWith(norm(c).replace(/⟦⟧$/, '')) && c.length >= Math.min(full.length, 30) ? '[' + d.label + ']' : m));
+  }
+  return out;
+}
+
 const G = golden as Record<string, { empty: string; full: string }>;
 
 describe('equivalencia con el prototipo v40', () => {
@@ -50,7 +65,7 @@ describe('equivalencia con el prototipo v40', () => {
       it(`${t.id} (${kind})`, () => {
         const n: NoteState = { values: scenario(t, kind), custom: {}, lit: {}, drop: {}, items: {} };
         const text = toText(t, { note: () => n, vis: () => undefined, inserted: () => undefined });
-        expect(text).toBe(G[t.id][kind]);
+        expect(text).toBe(kind === 'empty' ? withNewAutoLabels(t, G[t.id][kind]) : G[t.id][kind]);
       });
     }
   }

@@ -1,7 +1,8 @@
-export const VERSION = 'v41';
+export const VERSION = 'v42';
 
 /** Registro de cambios visible en la app (lo más reciente primero). */
 export const CHANGELOG: { v: string; d: string; t: string }[] = [
+  { v: 'v42', d: '2026-11-03', t: 'Paciente nuevo (Alt+P) borra todas las notas abiertas; aviso cuando la nota tiene datos de hace rato; la nota en curso sobrevive a una recarga pero se borra al cerrar la pestaña. Al copiar con pendientes: lista para completarlos, copiar sin ellos (sin perder lo que escribiste) o copiar igual. Firma con tu perfil (nombre y registro) y campo {hora=ahora}. Botón Normal por sección, contador de pendientes por sección y bloque, y modo Pendientes. Hasta 4 veces más rápida al escribir en notas largas. En el celular: barra inferior con Siguiente, Ver nota, Paciente y Copiar, y menús como hoja inferior. Contraste accesible, tipografías incluidas (sin Google), negritas corregidas, protección ante fallas, respaldo con recordatorio y sincronización entre pestañas. Copia con formato (negritas) para historias que lo aceptan.' },
   { v: 'v41', d: '2026-11-02', t: 'Notarium pasa de artefacto a aplicación: se instala en cualquier computador o celular, funciona sin internet y se actualiza sola. Las 96 plantillas, 16 cuestionarios y las calculadoras se trasladaron sin cambios en el texto que generan (verificado automáticamente contra la versión v40). Importa tu respaldo del artefacto para traer tus plantillas propias.' },
   { v: 'v40', d: '2026-10-28', t: 'Nueva nota de examen: Mano, rizartrosis y De Quervain.' },
   { v: 'v39', d: '2026-10-22', t: 'Nuevo cuestionario: Índice de Barthel.' },

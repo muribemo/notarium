@@ -1,5 +1,5 @@
 /** Atajos de teclado y navegación entre pendientes. */
-import { copyNote, currentTpl, noteOf, openFree, redo, undo, useApp, editNote, tplById } from '../state/store';
+import { clearValue, copyNote, currentTpl, newPatient, noteOf, openFree, redo, undo, useApp, tplById } from '../state/store';
 import { openPalette, useSheetUI } from './Sheet';
 import { secOn } from '../engine/text';
 
@@ -38,6 +38,7 @@ export function onKeyDown(e: KeyboardEvent) {
   if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); document.getElementById('q')?.focus(); return; }
   if (e.altKey && e.key.toLowerCase() === 'n') { e.preventDefault(); openFree(); return; }
   if (s.view !== 'note') return;
+  if (e.altKey && e.key.toLowerCase() === 'p') { e.preventDefault(); newPatient(); return; }
 
   if (mod && e.key === 'Enter') { e.preventDefault(); copyNote(); return; }
   if (mod && e.key.toLowerCase() === 'z' && !typing) { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
@@ -61,7 +62,7 @@ export function onKeyDown(e: KeyboardEvent) {
     e.preventDefault();
     const t = tplById(grp.dataset.tid || '');
     const k = grp.dataset.gk!;
-    if (t) editNote(t, (n) => { n.values[k] = t.vars[k].kind === 'multi' ? [] : undefined; });
+    if (t) clearValue(t, k);
     return;
   }
   if (e.key === '/') {

@@ -104,3 +104,13 @@ describe('respaldo', () => {
     expect(out.custom.s_1).toMatchObject({ name: 'Frase', source: 'Hola', use: 'bloque' });
   });
 });
+
+describe('copiar sin pendientes', () => {
+  it('quita frases sin datos y conserva las que tienen datos llenados', () => {
+    const t = tpl('Historia de {duración} de dolor, refractario a [manejo: fisioterapia / AINES]. Lado [lado: derecho / izquierdo]. Firma {médico=Dr. X}.');
+    const n = freshNote(t);
+    n.values['duracion'] = '6 meses';
+    expect(toText(t, { note: () => n, vis: () => undefined, inserted: () => undefined }, { omitPending: true }))
+      .toBe('Historia de 6 meses de dolor, refractario a. Firma Dr. X.');
+  });
+});

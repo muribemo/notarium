@@ -16,7 +16,7 @@ const HELP: [string, React.ReactNode][] = [
   ['[* 0 sin hallazgos / dolor / edema]', <>Un <b>0</b> antes de la opción la vuelve <b>excluyente</b>: si la marcas se quitan las demás.</>],
   ['[!triamcinolona 40 mg]', <>El signo ! marca una opción en rojo, como advertencia.</>],
   ['[aguja roma (? reduce el riesgo intravascular)]', <>Una <b>pista</b> que aparece al elegir esa opción. Con <code>?? texto</code> como última opción, la pista es del campo.</>],
-  ['{peso}', <>Campo para escribir. <code>{'{fecha=hoy}'}</code> pone la fecha; <code>{'{médico=Dr. …}'}</code> trae un valor ya escrito.</>],
+  ['{peso}', <>Campo para escribir. <code>{'{fecha=hoy}'}</code> pone la fecha, <code>{'{hora=ahora}'}</code> la hora; <code>{'{médico=Dr. …}'}</code> trae un valor ya escrito (el campo <i>médico</i> usa tu perfil).</>],
   ['[@aguja: 22 G / 25 G]', <>El @ recuerda tu elección para la siguiente nota. Úsalo para la técnica, nunca para el lado.</>],
   ['[^…]  [~…]', <>Fuerza (^) o evita (~) la mayúscula inicial de lo elegido.</>],
   ['[#opioides] [%anestésicos] [?dn4]', <>Calculadora de opioides, de anestésico local o un cuestionario (dn4, pdq, bpi, esas, pps, ecog, odi, ndi, stopbang, ort, phq4, painad, kps, rass, barthel, cam).</>],
@@ -42,7 +42,7 @@ export function Editor() {
   return (
     <>
       <div className="bar">
-        <button className="btn mob" onClick={() => useApp.setState({ pickOpen: true })}>Notas</button>
+        <button className="btn mob" onClick={() => useApp.setState({ pickOpen: true })} aria-label="Abrir lista de notas">☰</button>
         <h1>{d.builtin ? `Editar: ${d.name}` : d.id ? 'Editar plantilla' : d.use === 'bloque' ? 'Nuevo bloque' : 'Nueva plantilla'}</h1>
         <span className="bar-gap" />
         <button className="btn" onClick={() => { useApp.setState({ editing: null }); setView('note'); }}>Cancelar</button>

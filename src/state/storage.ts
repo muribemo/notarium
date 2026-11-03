@@ -22,6 +22,12 @@ export interface Settings {
   /** Veces que se ha insertado cada bloque, para ordenarlos. */
   useBlk?: Record<string, number>;
   tourDone?: boolean;
+  /** Profesional que firma las notas. */
+  profile?: { name?: string; reg?: string; specialty?: string };
+  /** Fecha (ms) del último respaldo exportado. */
+  lastBackup?: number;
+  /** Atenuar lo completo y mostrar solo lo pendiente. */
+  onlyPending?: boolean;
   [k: string]: unknown;
 }
 

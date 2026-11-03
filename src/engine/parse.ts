@@ -27,6 +27,21 @@ export function slug(s: string): string {
   );
 }
 
+/** {fecha=hoy} pone la fecha, {hora=ahora} la hora; cualquier otro valor queda escrito por defecto. */
+function applyDefault(d: VarDef, def: string) {
+  if (/^(hoy|today)$/i.test(def)) d.today = true;
+  else if (/^(ahora|now)$/i.test(def)) d.now = true;
+  else d.def = def;
+}
+
+/** Etiqueta de un grupo sin nombre: sus opciones, cortadas en una palabra y con "…". */
+export function autoLabel(opts: Option[]): string {
+  const full = opts.map((o) => o.v.replace(/⟦\w+⟧/g, '…')).join(' / ');
+  if (full.length <= 40) return full;
+  const cut = full.slice(0, 40);
+  return cut.slice(0, Math.max(cut.lastIndexOf(' '), 12)).replace(/[\s/,;]+$/, '') + '…';
+}
+
 export function parseTemplate(meta: TemplateMeta, source: string): Template {
   const vars: Record<string, VarDef> = {};
   const sticky: string[] = [];
@@ -123,7 +138,7 @@ export function parseTemplate(meta: TemplateMeta, source: string): Template {
             if (!fk) {
               fk = keyFor(f);
               const fd: VarDef = { label: f, kind: 'text', inOpt: true };
-              if (fdef) { if (/^(hoy|today)$/i.test(fdef)) fd.today = true; else fd.def = fdef; }
+              if (fdef) applyDefault(fd, fdef);
               vars[fk] = fd;
               if (fst) sticky.push(fk);
             }
@@ -145,11 +160,12 @@ export function parseTemplate(meta: TemplateMeta, source: string): Template {
         if (name) key = keyFor(name);
         else { do { key = 'op' + ++auto; } while (vars[key]); }
         const d: VarDef = {
-          label: name || opts.map((o) => o.v).join(' / ').slice(0, 48),
+          label: name || autoLabel(opts),
           kind: multi ? 'multi' : 'choice',
           options: opts,
         };
         if (list) d.list = true;
+        if (!name) d.auto = true;
         if (groupHint) d.hint = groupHint;
         vars[key] = d;
         if (p.st) sticky.push(key);
@@ -165,7 +181,7 @@ export function parseTemplate(meta: TemplateMeta, source: string): Template {
         if (k0) { out += tok(k0, p.cap); continue; }
         const key = keyFor(body);
         const d: VarDef = { label: body, kind: 'text' };
-        if (def) { if (/^(hoy|today)$/i.test(def)) d.today = true; else d.def = def; }
+        if (def) applyDefault(d, def);
         vars[key] = d;
         if (p.st) sticky.push(key);
         out += tok(key, p.cap);

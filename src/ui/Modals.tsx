@@ -1,6 +1,7 @@
-/** Ventanas: atajos de teclado / bienvenida y guardar nota compuesta. */
+/** Ventanas: bienvenida, atajos, copiar con pendientes y guardar nota compuesta. */
 import { useState } from 'react';
-import { openTpl, updateSettings, useApp } from '../state/store';
+import { copyNote, currentTpl, openTpl, pendingList, setView, updateSettings, useApp } from '../state/store';
+import { useSheetUI } from './Sheet';
 import { blocksOfNote, writeCombo } from './actions';
 
 const KEYS: [string, string][] = [
@@ -8,12 +9,88 @@ const KEYS: [string, string][] = [
   ['1 a 9', 'Elige la opción del grupo resaltado'],
   ['Retroceso', 'Borra la elección del grupo resaltado'],
   ['Ctrl+Enter', 'Copia la nota'],
+  ['Alt+P', 'Paciente nuevo (borra las notas abiertas)'],
   ['Ctrl+Z / Ctrl+Shift+Z', 'Deshacer / rehacer'],
   ['/', 'Insertar un bloque o texto'],
   ['Alt+N', 'Nota libre'],
   ['Ctrl+K', 'Buscar nota'],
   ['Esc', 'Cerrar ventanas y listas'],
 ];
+const touch = () => window.matchMedia?.('(hover: none)').matches;
+
+function Box({ label, children, onClose }: { label: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="modal show" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal-box" role="dialog" aria-modal="true" aria-label={label}>{children}</div>
+    </div>
+  );
+}
+
+/** Lleva a un pendiente concreto y lo resalta. */
+function gotoPending(tid: string, key: string) {
+  useApp.setState({ modal: null });
+  setTimeout(() => {
+    const el = document.querySelector<HTMLElement>(`#sheet [data-tid="${tid}"][data-gk="${key}"]`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.focus({ preventScroll: true });
+    if (el.classList.contains('cmp')) useSheetUI.setState({ openGrp: tid + '|' + key });
+  }, 30);
+}
+
+function CopyModal({ onClose }: { onClose: () => void }) {
+  const L = pendingList(currentTpl());
+  return (
+    <Box label="Quedan opciones sin elegir" onClose={onClose}>
+      <h2>Quedan {L.length} {L.length === 1 ? 'opción' : 'opciones'} sin elegir</h2>
+      <p className="muted">Si copias igual, en la historia quedarán entre corchetes, por ejemplo <code>[lado]</code>.</p>
+      <ul className="pend-list">
+        {L.slice(0, 12).map((x, i) => (
+          <li key={i}><button className="linkish" onClick={() => gotoPending(x.tid, x.key)}>{x.label}</button> <span className="muted">· {x.where}</span></li>
+        ))}
+        {L.length > 12 && <li className="muted">y {L.length - 12} más…</li>}
+      </ul>
+      <div className="row">
+        <button className="btn primary" autoFocus onClick={() => L[0] && gotoPending(L[0].tid, L[0].key)}>Completar</button>
+        <button className="btn" onClick={() => copyNote('omit')} title="Las frases que tienen algo sin elegir no se copian">Copiar sin esas frases</button>
+        <button className="btn danger" onClick={() => copyNote('force')}>Copiar con [corchetes]</button>
+      </div>
+    </Box>
+  );
+}
+
+function ProfileFields({ compact }: { compact?: boolean }) {
+  const p = useApp((s) => s.settings.profile) || {};
+  const up = (k: 'name' | 'reg' | 'specialty', v: string) => updateSettings((s) => { s.profile = { ...(s.profile || {}), [k]: v }; });
+  return (
+    <div className={compact ? '' : 'ed-meta'}>
+      <label className="cv-l">Nombre como firma<input value={p.name || ''} placeholder="Dr. Nombre Apellido" onChange={(e) => up('name', e.target.value)} /></label>
+      <label className="cv-l">Registro médico (opcional)<input value={p.reg || ''} placeholder="RM 12345" onChange={(e) => up('reg', e.target.value)} /></label>
+    </div>
+  );
+}
+
+export function ProfileView() {
+  const p = useApp((s) => s.settings.profile) || {};
+  return (
+    <>
+      <div className="bar">
+        <button className="btn mob" onClick={() => useApp.setState({ pickOpen: true })} aria-label="Abrir lista de notas">☰</button>
+        <h1>Mi perfil y firma</h1>
+        <span className="bar-gap" />
+        <button className="btn primary" onClick={() => setView('note')}>Volver a la nota</button>
+      </div>
+      <div className="about">
+        <section className="card">
+          <h2>Firma de las notas</h2>
+          <p>Las plantillas firman con estos datos en el campo del médico. Se guardan solo en este navegador y van en tu respaldo.</p>
+          <ProfileFields />
+          <p className="muted">Así saldrá: <b>{p.name ? (p.reg ? `${p.name} (RM ${p.reg})` : p.name) : 'el nombre escrito en cada plantilla'}</b>. Los cambios aplican a las notas nuevas.</p>
+        </section>
+      </div>
+    </>
+  );
+}
 
 export function Modals() {
   const modal = useApp((s) => s.modal);
@@ -23,25 +100,30 @@ export function Modals() {
   if (!modal) return null;
   const close = () => { useApp.setState({ modal: null }); setName(''); setShort(''); };
 
+  if (modal.kind === 'copy') return <CopyModal onClose={close} />;
+
   if (modal.kind === 'keys') {
+    const done = () => { updateSettings((s) => { s.tourDone = true; }); close(); };
     return (
-      <div className="modal show" onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
-        <div className="modal-box" role="dialog" aria-modal="true" aria-label="Ayuda">
-          {modal.welcome && (<>
-            <h2>Bienvenido a Notarium</h2>
-            <ol className="tour">
-              <li>Elige una nota en el panel o empieza una <b>Nota libre</b>.</li>
-              <li>Toca las opciones subrayadas y llena los campos; lo que no elijas sale entre corchetes y lo vacío no sale.</li>
-              <li>Inserta bloques (exámenes, cuestionarios, plan…) con <b>+</b> o con <b>/</b>.</li>
-              <li><b>Copiar nota</b> y pégala en la historia clínica. No se guardan datos de pacientes.</li>
-            </ol>
-            <h3>Atajos de teclado</h3>
-          </>)}
+      <Box label="Ayuda" onClose={done}>
+        {modal.welcome && (<>
+          <h2>Bienvenido a Notarium</h2>
+          <ol className="tour">
+            <li>Elige una nota en la lista o empieza una <b>Nota libre</b>.</li>
+            <li>Toca las opciones y llena los campos. Lo que no elijas sale entre corchetes; lo que dejes vacío no sale.</li>
+            <li>Inserta bloques (exámenes, cuestionarios, plan…) con <b>+ Insertar bloque</b>.</li>
+            <li><b>Copiar nota</b> y pégala en la historia clínica. Con <b>Paciente nuevo</b> empiezas de cero; nada del paciente queda guardado.</li>
+          </ol>
+          <h3>¿Con qué nombre firmas?</h3>
+          <ProfileFields compact />
+        </>)}
+        {!touch() && (<>
+          <h3>{modal.welcome ? 'Atajos de teclado' : ''}</h3>
           {!modal.welcome && <h2>Atajos de teclado</h2>}
           <dl className="kl">{KEYS.map(([k, v]) => <div key={k} style={{ display: 'contents' }}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
-          <div className="row"><button className="btn primary" onClick={() => { updateSettings((s) => { s.tourDone = true; }); close(); }}>Entendido</button></div>
-        </div>
-      </div>
+        </>)}
+        <div className="row"><button className="btn primary" onClick={done}>Empezar</button></div>
+      </Box>
     );
   }
 
@@ -55,14 +137,12 @@ export function Modals() {
     openTpl(id);
   };
   return (
-    <div className="modal show" onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
-      <div className="modal-box" role="dialog" aria-modal="true" aria-label="Guardar como nota compuesta">
-        <h2>Guardar como nota compuesta</h2>
-        <p className="muted">Guarda <b>{t.combo ? catalog.byId.get(t.combo.base)?.name : t.name}</b> con sus {blocks.length} bloques insertados ({blocks.map((b) => catalog.byId.get(b.template)?.name).filter(Boolean).join(', ')}). La próxima vez se abre ya armada.</p>
-        <label className="cv-l">Nombre<input autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} placeholder="Ej. Primera vez columna lumbar" /></label>
-        <label className="cv-l">Código (opcional)<input value={short} maxLength={8} onChange={(e) => setShort(e.target.value)} /></label>
-        <div className="row"><button className="btn primary" onClick={save} disabled={!name.trim()}>Guardar</button><button className="btn" onClick={close}>Cancelar</button></div>
-      </div>
-    </div>
+    <Box label="Guardar como nota compuesta" onClose={close}>
+      <h2>Guardar como nota compuesta</h2>
+      <p className="muted">Guarda <b>{t.combo ? catalog.byId.get(t.combo.base)?.name : t.name}</b> con sus {blocks.length} bloques insertados ({blocks.map((b) => catalog.byId.get(b.template)?.name).filter(Boolean).join(', ')}). La próxima vez se abre ya armada.</p>
+      <label className="cv-l">Nombre<input autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} placeholder="Ej. Primera vez columna lumbar" /></label>
+      <label className="cv-l">Código (opcional)<input value={short} maxLength={8} onChange={(e) => setShort(e.target.value)} /></label>
+      <div className="row"><button className="btn primary" onClick={save} disabled={!name.trim()}>Guardar</button><button className="btn" onClick={close}>Cancelar</button></div>
+    </Box>
   );
 }
